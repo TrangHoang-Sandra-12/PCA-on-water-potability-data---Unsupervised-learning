@@ -1,0 +1,144 @@
+---
+title: "PCA on water potability data"
+author: "Trang Hoang"
+date: "2025-01-03"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    number_sections: false
+    theme: spacelab
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Principal Component Analysis (PCA) is a statistical technique used for dimensionality reduction while preserving as much variability (information) as possible in the data. It transforms the original variables into a new set of uncorrelated variables called principal components (PCs), which are linear combinations of the original variables.
+
+In this research, I will attempt to better understand of the data and dependencies between variables, and remove less significant components to reduce noise in the dataset and predict the water quality.
+
+# Data Preparation
+
+The dataset used for this analysis is Water Quality and Potability, which contains information about water qualification indexs including: ph, hardness, solids, chloramines, provided by Kaggle (<https://www.kaggle.com/datasets/uom190346a/water-quality-and-potability>)
+
+Dataset contains 10 variables: 
+- pH: The pH level of the water. 
+- Hardness: Water hardness, a measure of mineral content.
+- Solids: Total dissolved solids in the water. 
+- Chloramines: Chloramines concentration in the water. 
+- Sulfate: Sulfate concentration in the water. 
+- Conductivity: Electrical conductivity of the water. 
+- Organic_carbon: Organic carbon content in the water.
+- Trihalomethanes: Trihalomethanes concentration in the water. 
+- Turbidity: Turbidity level, a measure of water clarity.
+- Potability: Target variable; indicates water potability with values 1 (potable) and 0 (not potable).
+
+```{r}
+# Packages & Libraries
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(corrplot,clusterSim,GGally,factoextra,gridExtra,devtools,ggbiplot)
+```
+```{r}
+# Import dataset
+
+```
+
+
+```{r, echo = FALSE}
+setwd("/Users/phuongtrang/Library/Mobile Documents/com~apple~CloudDocs/Unsupervised Learning/Final project/Dataset")
+```
+```{r}
+dataset<-read.csv("water_potability.csv", sep=",", dec=".", header=TRUE)
+data <- as.matrix(dataset[1:9])
+
+```
+
+```{r}
+# Checking data
+head(data)
+dim(data)
+summary(data)
+```
+
+There are many NA values in the dataset, so I use complete.case to remove rows with NA value
+
+```{r}
+data <- data[complete.cases(data), ]
+any(is.na(data))
+```
+
+```{r}
+# Check the relationship among variables
+ggpairs(data)
+corrplot(cor(data), method = "circle", order="hclust")
+```
+
+Most variables have very low correlation coefficients (Corr close to 0), suggesting weak linear relationships between them. The strongest correlation observed is Sulfate vs. Hardness (Corr: 0.163\*\*), which is still relatively weak.
+
+# Principal Component Analysis (PCA)
+
+```{r}
+
+pca<- prcomp(data, center = TRUE, scale. = TRUE)
+
+```
+
+```{r}
+fviz_eig(pca, choice='eigenvalue')
+```
+
+According to Kaiser rule (Kaiser criterion): Only retain principal components with eigenvalues \> 1. Based on the graph, PC1 to PC5 can be retained.
+
+```{r}
+fviz_eig(pca)
+
+```
+
+```{r}
+summary(pca)
+```
+
+In my view, we should select six or seven components based on the plot of components and the variation they explain. The reason for this is because only six components account for 71% of the variation, whereas the seventh component alone does not account for much of it. Therefore, the eighth component will also be considered in the study.
+
+```{r}
+fviz_pca_var(pca, col.var = "blue")
+```
+
+The variables "Hardness", "Solids", "Sulfate" and "pH" are located far from the origin, indicating that they have high correlation with other principal components. This means that they contribute more to the variation of the principal components and may have more relationship with other variables in the dataset.
+
+#### Contributions of individual variables to PC
+
+```{r}
+var <- get_pca_var(pca)
+a<-fviz_contrib(pca, "var",axes = 1)
+b<-fviz_contrib(pca, "var",axes = 2)
+c<-fviz_contrib(pca, "var",axes = 3)
+d<-fviz_contrib(pca, "var",axes = 4)
+e<-fviz_contrib(pca, "var",axes = 5)
+f<-fviz_contrib(pca, "var",axes = 6)
+g<-fviz_contrib(pca, "var",axes = 7)
+grid.arrange(a,b,c,d,e,f,g,top='Contribution to the Principal Components')
+```
+
+Some variables appear with high contributions in many major components, such as: Solids (Dim-1) Hardness (Dim-1, Dim-2) Sulfate (Dim-1, Dim-2) Chloramine (Dim-3, Dim-6, Dim-7) Trihalomethanes (Dim-4, Dim-5) Turbidity (Dim-4, Dim-7)
+
+This result found principal components that reflected different aspects of the data, such as: Component Dim-1 focused on the total solids and pH factors. Components Dim-3 and Dim-6 focused on the compound bases. Components Dim-4 and Dim-7 were related to turbidity and disinfectants.
+
+```{r}
+#PCA with distinction of classes (with values 1 (potable) and 0 (not potable).
+dataset <- dataset[complete.cases(dataset), ]
+pca1 <- prcomp(dataset, center=TRUE, scale=TRUE)
+ggbiplot(pca1, obs.scale=1, var.scale=1, groups=as.factor(dataset$Potability), ellipse=TRUE, circle = TRUE)
+```
+
+Overall, the data points belonging to groups 0 and 1 do not exhibit a clear separation within the space defined by the first two principal components (PC1 and PC2). These two groups significantly overlap, indicating no distinct differences between potable and non-potable water based solely on the first two principal components.
+
+This observation suggests that PC1 (accounting for 12.1% of the variance) and PC2 (accounting for 11.7% of the variance) are insufficient to effectively distinguish between the two groups.
+
+# Conclusion
+Obviously, the variables are not strongly correlated, which leads to the ineffectiveness of PCA. This indicates the importance of the nature of the initial data file and the correlation between the variables.
+
