@@ -89,7 +89,7 @@ Correlation	Weak across all features
 Key Variables	Hardness, Solids, Sulfate, pH
 Variance Explained	~71% by first six components
 Group Separation	Overlapping classes (0 & 1)
-Conclusion	PCA is not effective for potability prediction due to low feature correlation
+Conclusion	PCA is not effective for potability prediction due to low feature correlation  
 🧰 Tools & Libraries
 
 Language: R
